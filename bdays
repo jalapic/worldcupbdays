@@ -1,0 +1,79 @@
+### Extracting Squads
+library(XML)
+doc <- readHTMLTable(doc="http://en.wikipedia.org/wiki/2014_FIFA_World_Cup_squads", header=TRUE)
+
+#put the countries into a list
+#had to manually check the correct doc to use for each country
+l<-list(doc[[2]], doc[[4]],doc[[6]], doc[[8]],doc[[10]], doc[[12]],doc[[14]], doc[[16]],doc[[18]], doc[[20]],
+        doc[[22]], doc[[24]],doc[[26]], doc[[28]],doc[[30]], doc[[32]],doc[[34]], doc[[36]],doc[[38]], doc[[40]],
+        doc[[42]], doc[[44]],doc[[46]], doc[[48]],doc[[50]], doc[[52]],doc[[54]], doc[[56]],doc[[58]], doc[[60]],
+        doc[[62]], doc[[64]])
+
+
+
+### Extracting Names of Countries
+library(reshape2)
+doc1 <- readHTMLList(doc="http://en.wikipedia.org/wiki/2014_FIFA_World_Cup_squads")
+
+#again, had to manually check the list of country names to make sure in same order as squads above
+l.names<-list(doc1[[20]], doc1[[24]],doc1[[21]], doc1[[25]],
+              doc1[[22]], doc1[[26]],doc1[[23]], doc1[[27]])
+
+newdf<-as.data.frame(melt(l.names))
+newdf$L1<-NULL
+colnames(newdf)<-c("country")
+
+names<-newdf$country
+names(l)<-names #add names of each country to each df in the list
+
+
+### A Function for testing if shared birthdays exist
+birthdays<-function(df){
+df<-as.data.frame(df)
+colnames(df)<-c("no", "pos", "player", "dob", "caps", "club")
+df$dob<-as.character(strptime(df$dob, format = "(%Y-%m-%d)"))
+df$dob<-as.Date(df$dob)
+df$Y<-as.numeric(format(df$dob, "%Y")) 
+df$m<-as.numeric(format(df$dob, "%m")) 
+df$d<-as.numeric(format(df$dob, "%d")) 
+df$m<-as.character(df$m)
+df$d<-as.character(df$d)
+df$md <- paste(df$m, df$d, sep = "-")
+x<-duplicated(df$md)
+true<-table(x)["TRUE"]
+return(true)
+}
+
+newdf$bdays<-lapply(l,birthdays)
+newdf$bdays <- gsub("NA", "0", newdf$bdays) #subbing NA for 0 as NA returned if 0 shared bdays from table(x) 
+
+newdf # have a look to see how many shared birthdays there are
+
+
+
+### Step 2. Return their names !
+
+whoshares<-function(df){
+df<-as.data.frame(df)
+colnames(df)<-c("no", "pos", "player", "dob", "caps", "club")
+df$dob<-as.character(strptime(df$dob, format = "(%Y-%m-%d)"))
+df$dob<-as.Date(df$dob)
+df$Y<-as.numeric(format(df$dob, "%Y")) 
+df$m<-as.numeric(format(df$dob, "%m")) 
+df$d<-as.numeric(format(df$dob, "%d")) 
+df$m<-as.character(df$m)
+df$d<-as.character(df$d)
+df$md <- paste(df$m, df$d, sep = "-")
+obs<-which(duplicated(df$md) | duplicated(df$md, fromLast = TRUE))  #these are the 'to-keep' observations
+df<-df[obs,] 
+df<-df[,3:4]
+df$dob<-as.character(df$dob)
+return(df)
+}
+
+share.bdays<-lapply(l,whoshares)
+share.bdays
+share.df<-melt(share.bdays, id.vars="player", measure.vars="dob")
+share.df<-share.df[,c(1,3:4)]
+colnames(share.df)<-c("player", "dob", "country")
+share.df  #take a look
